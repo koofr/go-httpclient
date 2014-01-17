@@ -31,6 +31,15 @@ type RequestData struct {
 	RespValue       interface{}
 }
 
+type InvalidStatusError struct {
+	Expected []int
+	Got      int
+}
+
+func (e InvalidStatusError) Error() string {
+	return fmt.Sprintf("Invalid response status! Got %d, expected %d", e.Got, e.Expected)
+}
+
 type HTTPClient struct {
 	BaseURL   *url.URL
 	Headers   http.Header
@@ -118,7 +127,8 @@ func (c *HTTPClient) checkStatus(req *RequestData, response *http.Response) (err
 		}
 
 		if !statusOk {
-			err = fmt.Errorf("invalid status: %s", response.Status)
+			err = InvalidStatusError{req.ExpectedStatus, response.StatusCode}
+			// err = fmt.Errorf("invalid status: %s", response.Status)
 			return
 		}
 	}
