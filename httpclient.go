@@ -234,6 +234,7 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	if err = c.checkStatus(req, response); err != nil {
+		defer response.Body.Close()
 		return
 	}
 
