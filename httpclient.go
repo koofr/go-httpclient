@@ -128,7 +128,6 @@ func (c *HTTPClient) checkStatus(req *RequestData, response *http.Response) (err
 
 		if !statusOk {
 			err = InvalidStatusError{req.ExpectedStatus, response.StatusCode}
-			// err = fmt.Errorf("invalid status: %s", response.Status)
 			return
 		}
 	}
@@ -182,11 +181,12 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 }
 
 func (c *HTTPClient) runPostHook(req *http.Request, response *http.Response) (err error) {
-
 	hook, ok := c.PostHooks[response.StatusCode]
+
 	if ok {
 		err = hook(req, response)
 	}
+
 	return
 }
 
@@ -194,6 +194,7 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	reqURL := c.buildURL(req)
 
 	err = c.marshalRequest(req)
+
 	if err != nil {
 		return
 	}
