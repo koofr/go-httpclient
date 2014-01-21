@@ -29,6 +29,7 @@ type RequestData struct {
 	IgnoreRedirects bool
 	RespEncoding    Encoding
 	RespValue       interface{}
+	RespConsume     bool
 }
 
 type InvalidStatusError struct {
@@ -163,6 +164,11 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 		*respVal = buf
 
 		return
+	}
+
+	if req.RespConsume {
+		defer response.Body.Close()
+		ioutil.ReadAll(response.Body)
 	}
 
 	return
