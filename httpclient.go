@@ -35,10 +35,12 @@ type RequestData struct {
 type InvalidStatusError struct {
 	Expected []int
 	Got      int
+	Headers  map[string][]string
+	Content  string
 }
 
 func (e InvalidStatusError) Error() string {
-	return fmt.Sprintf("Invalid response status! Got %d, expected %d", e.Got, e.Expected)
+	return fmt.Sprintf("Invalid response status! Got %d, expected %d; headers: %s, content: %s", e.Got, e.Expected, e.Headers, e.Content)
 }
 
 type HTTPClient struct {
@@ -128,7 +130,11 @@ func (c *HTTPClient) checkStatus(req *RequestData, response *http.Response) (err
 		}
 
 		if !statusOk {
-			err = InvalidStatusError{req.ExpectedStatus, response.StatusCode}
+			lr := io.LimitReader(response.Body, 10*1024)
+			contentBytes, _ := ioutil.ReadAll(lr)
+			content := string(contentBytes)
+
+			err = InvalidStatusError{req.ExpectedStatus, response.StatusCode, response.Header, content}
 			return
 		}
 	}
