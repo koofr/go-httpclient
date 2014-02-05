@@ -3,6 +3,7 @@ package httpclient
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,7 @@ type Encoding string
 
 const (
 	EncodingJSON = "JSON"
+	EncodingXML  = "XML"
 )
 
 type RequestData struct {
@@ -95,11 +97,15 @@ func (c *HTTPClient) setHeaders(req *RequestData, httpReq *http.Request) {
 	switch req.ReqEncoding {
 	case EncodingJSON:
 		httpReq.Header.Set("Content-Type", "application/json")
+	case EncodingXML:
+		httpReq.Header.Set("Content-Type", "application/xml")
 	}
 
 	switch req.RespEncoding {
 	case EncodingJSON:
 		httpReq.Header.Set("Accept", "application/json")
+	case EncodingXML:
+		httpReq.Header.Set("Accept", "application/xml")
 	}
 
 	if c.Headers != nil {
@@ -156,6 +162,17 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 		err = json.Unmarshal(buf, req.RespValue)
 
 		return
+
+	case EncodingXML:
+		defer response.Body.Close()
+
+		if buf, err = ioutil.ReadAll(response.Body); err != nil {
+			return
+		}
+
+		err = xml.Unmarshal(buf, req.RespValue)
+
+		return
 	}
 
 	switch req.RespValue.(type) {
@@ -181,14 +198,36 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 }
 
 func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
-	if req.ReqValue != nil && req.ReqEncoding != "" && req.ReqReader == nil {
-		var buf []byte
+	if req.ReqReader != nil || req.ReqValue == nil {
+		return
+	}
+
+	var buf []byte
+
+	switch req.ReqEncoding {
+	case EncodingJSON:
 		buf, err = json.Marshal(req.ReqValue)
+
 		if err != nil {
 			return
 		}
+
 		req.ReqReader = bytes.NewReader(buf)
+
+		return
+
+	case EncodingXML:
+		buf, err = xml.Marshal(req.ReqValue)
+
+		if err != nil {
+			return
+		}
+
+		req.ReqReader = bytes.NewReader(buf)
+
+		return
 	}
+
 	return
 }
 
