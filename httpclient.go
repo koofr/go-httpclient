@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type Encoding string
@@ -72,28 +73,25 @@ func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Re
 	c.PostHooks[onStatus] = hook
 }
 
-func (c *HTTPClient) buildURL(req *RequestData) string {
-	if req.FullURL != "" {
-		return req.FullURL
-	}
-
+func (c *HTTPClient) buildURL(req *RequestData) *url.URL {
 	bu := c.BaseURL
 
-	u := url.URL{
+	opaque := EscapePath(bu.Path + req.Path)
+
+	u := &url.URL{
 		Scheme: bu.Scheme,
 		Host:   bu.Host,
-		Path:   bu.Path + req.Path,
+		Opaque: opaque,
 	}
 
 	if req.Params != nil {
 		u.RawQuery = req.Params.Encode()
 	}
 
-	return u.String()
+	return u
 }
 
 func (c *HTTPClient) setHeaders(req *RequestData, httpReq *http.Request) {
-
 	switch req.ReqEncoding {
 	case EncodingJSON:
 		httpReq.Header.Set("Content-Type", "application/json")
@@ -242,18 +240,21 @@ func (c *HTTPClient) runPostHook(req *http.Request, response *http.Response) (er
 }
 
 func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err error) {
-	reqURL := c.buildURL(req)
-
 	err = c.marshalRequest(req)
 
 	if err != nil {
 		return
 	}
 
-	r, err := http.NewRequest(req.Method, reqURL, req.ReqReader)
+	r, err := http.NewRequest(req.Method, req.FullURL, req.ReqReader)
 
 	if err != nil {
 		return
+	}
+
+	if req.FullURL == "" {
+		r.URL = c.buildURL(req)
+		r.Host = r.URL.Host
 	}
 
 	c.setHeaders(req, r)
@@ -288,4 +289,12 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	return
+}
+
+func EscapePath(path string) string {
+	u := url.URL{
+		Path: path,
+	}
+
+	return strings.Replace(u.String(), "+", "%2b", -1)
 }
