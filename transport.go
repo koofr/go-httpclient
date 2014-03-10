@@ -7,6 +7,7 @@ import (
 
 var HttpTransport = &http.Transport{
 	DisableCompression: true,
+	Proxy:              http.ProxyFromEnvironment,
 }
 
 var HttpClient = &http.Client{
@@ -20,6 +21,7 @@ var InsecureTlsConfig = &tls.Config{
 var InsecureHttpTransport = &http.Transport{
 	TLSClientConfig:    InsecureTlsConfig,
 	DisableCompression: true,
+	Proxy:              http.ProxyFromEnvironment,
 }
 
 var InsecureHttpClient = &http.Client{
