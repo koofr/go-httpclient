@@ -9,42 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
-type Encoding string
-
-const (
-	EncodingJSON = "JSON"
-	EncodingXML  = "XML"
-)
-
-type RequestData struct {
-	Method          string
-	Path            string
-	Params          url.Values
-	FullURL         string // optional
-	Headers         http.Header
-	ReqReader       io.Reader
-	ReqEncoding     Encoding
-	ReqValue        interface{}
-	ExpectedStatus  []int
-	IgnoreRedirects bool
-	RespEncoding    Encoding
-	RespValue       interface{}
-	RespConsume     bool
-}
-
-type InvalidStatusError struct {
-	Expected []int
-	Got      int
-	Headers  map[string][]string
-	Content  string
-}
-
-func (e InvalidStatusError) Error() string {
-	return fmt.Sprintf("Invalid response status! Got %d, expected %d; headers: %s, content: %s", e.Got, e.Expected, e.Headers, e.Content)
-}
+var XmlHeaderBytes []byte = []byte(xml.Header)
 
 type HTTPClient struct {
 	BaseURL   *url.URL
@@ -62,11 +29,9 @@ func New() (httpClient *HTTPClient) {
 }
 
 func Insecure() (httpClient *HTTPClient) {
-	return &HTTPClient{
-		Client:    InsecureHttpClient,
-		Headers:   make(http.Header),
-		PostHooks: make(map[int]func(*http.Request, *http.Response) error),
-	}
+	httpClient = New()
+	httpClient.Client = InsecureHttpClient
+	return
 }
 
 func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Response) error) {
@@ -92,13 +57,6 @@ func (c *HTTPClient) buildURL(req *RequestData) *url.URL {
 }
 
 func (c *HTTPClient) setHeaders(req *RequestData, httpReq *http.Request) {
-	switch req.ReqEncoding {
-	case EncodingJSON:
-		httpReq.Header.Set("Content-Type", "application/json")
-	case EncodingXML:
-		httpReq.Header.Set("Content-Type", "application/xml")
-	}
-
 	switch req.RespEncoding {
 	case EncodingJSON:
 		httpReq.Header.Set("Accept", "application/json")
@@ -200,6 +158,10 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 		return
 	}
 
+	if req.Headers == nil {
+		req.Headers = make(http.Header)
+	}
+
 	var buf []byte
 
 	switch req.ReqEncoding {
@@ -211,6 +173,7 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 		}
 
 		req.ReqReader = bytes.NewReader(buf)
+		req.Headers.Set("Content-Type", "application/json")
 
 		return
 
@@ -221,10 +184,15 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 			return
 		}
 
+		buf = append(XmlHeaderBytes, buf...)
+
 		req.ReqReader = bytes.NewReader(buf)
+		req.Headers.Set("Content-Type", "application/xml")
 
 		return
 	}
+
+	err = fmt.Errorf("HTTPClient: invalid ReqEncoding: %s", req.ReqEncoding)
 
 	return
 }
@@ -289,12 +257,4 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	return
-}
-
-func EscapePath(path string) string {
-	u := url.URL{
-		Path: path,
-	}
-
-	return strings.Replace(u.String(), "+", "%2b", -1)
 }
