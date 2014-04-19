@@ -22,6 +22,14 @@ type InvalidStruct struct {
 	Key complex128 `xml:"Key"`
 }
 
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read(p []byte) (n int, err error) {
+	return 0, r.err
+}
+
 var ts *httptest.Server
 var client *HTTPClient
 var handler func(http.ResponseWriter, *http.Request)
@@ -678,6 +686,83 @@ var _ = Describe("HTTPClient", func() {
 
 			Expect(n).To(Equal(0))
 			Expect(err.Error()).To(Equal("http: read on closed response body"))
+		})
+	})
+
+	Describe("UploadFile", func() {
+		It("should upload a file", func() {
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				reader, err := r.MultipartReader()
+				Expect(err).NotTo(HaveOccurred())
+				p, err := reader.NextPart()
+				Expect(err).NotTo(HaveOccurred())
+				body, err := ioutil.ReadAll(p)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(body).To(Equal([]byte("body")))
+				Expect(p.FormName()).To(Equal("file"))
+				Expect(p.FileName()).To(Equal("filename.txt"))
+
+				fmt.Fprintln(w, "ok")
+			}
+
+			req := &RequestData{
+				Method: "POST",
+				Path:   "/",
+			}
+
+			err := req.UploadFile("file", "filename.txt", bytes.NewReader([]byte("body")))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.Request(req)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should not upload a file with broken reader", func() {
+			waitCh := make(chan bool)
+
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				reader, err := r.MultipartReader()
+				Expect(err).NotTo(HaveOccurred())
+				p, err := reader.NextPart()
+				Expect(err).NotTo(HaveOccurred())
+				_, err = ioutil.ReadAll(p)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("multipart: Part Read: http: unexpected EOF reading trailer"))
+
+				fmt.Fprintln(w, "ok")
+
+				waitCh <- true
+			}
+
+			req := &RequestData{
+				Method: "POST",
+				Path:   "/",
+			}
+
+			buf := make([]byte, 1*1024*1024, 1*1024*1024) // must be greater than 759K
+
+			bodyReader := io.MultiReader(bytes.NewReader(buf), &errorReader{fmt.Errorf("broken body")})
+
+			err := req.UploadFile("file", "filename.txt", bodyReader)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.Request(req)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("Post http:/: broken body"))
+
+			<-waitCh
+		})
+
+		It("should not upload a file with broken form", func() {
+			req := &RequestData{
+				Method: "POST",
+				Path:   "/",
+			}
+
+			err := req.UploadFile("file", "filename.txt", bytes.NewReader([]byte("body")))
+			Expect(err).NotTo(HaveOccurred())
+
+			req.ReqReader.(*io.PipeReader).CloseWithError(fmt.Errorf("broken form"))
 		})
 	})
 
