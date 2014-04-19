@@ -88,10 +88,10 @@ var _ = Describe("HTTPClient", func() {
 		It("should get error if FullURL is invalid", func() {
 			_, err := client.Request(&RequestData{
 				Method:  "GET",
-				FullURL: "???",
+				FullURL: "://???",
 			})
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal(`Get ???: unsupported protocol scheme ""`))
+			Expect(err.Error()).To(Equal(`parse ://???: missing protocol scheme`))
 		})
 	})
 
