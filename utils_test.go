@@ -1,7 +1,7 @@
 package httpclient_test
 
 import (
-	. "git.koofr.lan/go-httpclient.git"
+	. "github.com/koofr/go-httpclient"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
