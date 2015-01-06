@@ -12,6 +12,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type ExampleStruct struct {
@@ -153,6 +156,76 @@ var _ = Describe("HTTPClient", func() {
 				FullURL: ts.URL,
 			})
 			Expect(err).To(Equal(postHookError))
+		})
+	})
+
+	Describe("SetRateLimit", func() {
+		It("should rate limit requests without timeout", func() {
+			responseLock := &sync.RWMutex{}
+			responseLock.Lock()
+			var counter int32 = 0
+
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				atomic.AddInt32(&counter, 1)
+				responseLock.RLock()
+				fmt.Fprintln(w, "ok")
+			}
+
+			client.SetRateLimit(10, 0)
+
+			for i := 0; i < 20; i++ {
+				go func() {
+					client.Request(&RequestData{
+						Method:  "GET",
+						FullURL: ts.URL,
+					})
+				}()
+			}
+
+			time.Sleep(1 * time.Second)
+
+			c := counter
+
+			responseLock.Unlock()
+
+			Expect(int(c)).To(Equal(10))
+
+			time.Sleep(1 * time.Second)
+
+			Expect(int(counter)).To(Equal(20))
+		})
+
+		It("should rate limit requests with timeout", func() {
+			responseLock := &sync.RWMutex{}
+			responseLock.Lock()
+
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				responseLock.RLock()
+				fmt.Fprintln(w, "ok")
+			}
+
+			client.SetRateLimit(10, 1*time.Second)
+
+			var errors int32 = 0
+
+			for i := 0; i < 15; i++ {
+				go func() {
+					_, err := client.Request(&RequestData{
+						Method:  "GET",
+						FullURL: ts.URL,
+					})
+
+					if err == RateLimitTimeoutError {
+						atomic.AddInt32(&errors, 1)
+					}
+				}()
+			}
+
+			time.Sleep(2 * time.Second)
+
+			responseLock.Unlock()
+
+			Expect(int(errors)).To(Equal(5))
 		})
 	})
 

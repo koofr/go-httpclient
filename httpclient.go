@@ -9,15 +9,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 var XmlHeaderBytes []byte = []byte(xml.Header)
 
 type HTTPClient struct {
-	BaseURL   *url.URL
-	Headers   http.Header
-	Client    *http.Client
-	PostHooks map[int]func(*http.Request, *http.Response) error
+	BaseURL          *url.URL
+	Headers          http.Header
+	Client           *http.Client
+	PostHooks        map[int]func(*http.Request, *http.Response) error
+	rateLimited      bool
+	rateLimitChan    chan struct{}
+	rateLimitTimeout time.Duration
 }
 
 func New() (httpClient *HTTPClient) {
@@ -36,6 +40,17 @@ func Insecure() (httpClient *HTTPClient) {
 
 func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Response) error) {
 	c.PostHooks[onStatus] = hook
+}
+
+func (c *HTTPClient) SetRateLimit(limit int, timeout time.Duration) {
+	c.rateLimited = true
+	c.rateLimitChan = make(chan struct{}, limit)
+
+	for i := 0; i < limit; i++ {
+		c.rateLimitChan <- struct{}{}
+	}
+
+	c.rateLimitTimeout = timeout
 }
 
 func (c *HTTPClient) buildURL(req *RequestData) *url.URL {
@@ -226,6 +241,24 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	c.setHeaders(req, r)
+
+	if c.rateLimited {
+		if c.rateLimitTimeout > 0 {
+			select {
+			case t := <-c.rateLimitChan:
+				defer func() {
+					c.rateLimitChan <- t
+				}()
+			case <-time.After(c.rateLimitTimeout):
+				return nil, RateLimitTimeoutError
+			}
+		} else {
+			t := <-c.rateLimitChan
+			defer func() {
+				c.rateLimitChan <- t
+			}()
+		}
+	}
 
 	if req.IgnoreRedirects {
 		transport := c.Client.Transport

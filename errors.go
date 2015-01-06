@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -15,3 +16,5 @@ type InvalidStatusError struct {
 func (e InvalidStatusError) Error() string {
 	return fmt.Sprintf("Invalid response status! Got %d, expected %d; headers: %s, content: %s", e.Got, e.Expected, e.Headers, e.Content)
 }
+
+var RateLimitTimeoutError = errors.New("HTTPClient rate limit timeout")
