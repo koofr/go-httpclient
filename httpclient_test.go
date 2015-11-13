@@ -42,6 +42,8 @@ var _ = Describe("HTTPClient", func() {
 		handler = nil
 
 		ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer GinkgoRecover()
+
 			if handler == nil {
 				fmt.Fprintln(w, "ok")
 			} else {
@@ -794,17 +796,17 @@ var _ = Describe("HTTPClient", func() {
 			waitCh := make(chan bool)
 
 			handler = func(w http.ResponseWriter, r *http.Request) {
+				defer func() {
+					waitCh <- true
+				}()
 				reader, err := r.MultipartReader()
 				Expect(err).NotTo(HaveOccurred())
 				p, err := reader.NextPart()
 				Expect(err).NotTo(HaveOccurred())
 				_, err = ioutil.ReadAll(p)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("multipart: Part Read: http: unexpected EOF reading trailer"))
 
 				fmt.Fprintln(w, "ok")
-
-				waitCh <- true
 			}
 
 			req := &RequestData{
