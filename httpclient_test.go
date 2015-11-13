@@ -841,4 +841,44 @@ var _ = Describe("HTTPClient", func() {
 		})
 	})
 
+	Describe("UploadFileExtra", func() {
+		It("should upload a file with extra fields", func() {
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				reader, err := r.MultipartReader()
+				Expect(err).NotTo(HaveOccurred())
+				p, err := reader.NextPart()
+				Expect(err).NotTo(HaveOccurred())
+				body, err := ioutil.ReadAll(p)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(body).To(Equal([]byte("bar")))
+				Expect(p.FormName()).To(Equal("foo"))
+				Expect(p.FileName()).To(Equal(""))
+				p, err = reader.NextPart()
+				Expect(err).NotTo(HaveOccurred())
+				body, err = ioutil.ReadAll(p)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(body).To(Equal([]byte("body")))
+				Expect(p.FormName()).To(Equal("file"))
+				Expect(p.FileName()).To(Equal("filename.txt"))
+
+				fmt.Fprintln(w, "ok")
+			}
+
+			req := &RequestData{
+				Method: "POST",
+				Path:   "/",
+			}
+
+			extra := map[string]string{
+				"foo": "bar",
+			}
+
+			err := req.UploadFileExtra("file", "filename.txt", bytes.NewReader([]byte("body")), extra)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = client.Request(req)
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
 })

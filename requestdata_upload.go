@@ -7,6 +7,10 @@ import (
 )
 
 func (req *RequestData) UploadFile(fieldName string, fileName string, reader io.Reader) (err error) {
+	return req.UploadFileExtra(fieldName, fileName, reader, nil)
+}
+
+func (req *RequestData) UploadFileExtra(fieldName string, fileName string, reader io.Reader, extra map[string]string) (err error) {
 	r, w := io.Pipe()
 
 	writer := multipart.NewWriter(w)
@@ -19,6 +23,15 @@ func (req *RequestData) UploadFile(fieldName string, fileName string, reader io.
 				w.Close()
 			}
 		}()
+
+		for k, v := range extra {
+			err = writer.WriteField(k, v)
+
+			if err != nil {
+				w.CloseWithError(err)
+				return
+			}
+		}
 
 		part, err := writer.CreateFormFile(fieldName, fileName)
 
