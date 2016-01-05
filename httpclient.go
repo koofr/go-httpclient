@@ -35,7 +35,7 @@ func New() (httpClient *HTTPClient) {
 func Insecure() (httpClient *HTTPClient) {
 	httpClient = New()
 	httpClient.Client = InsecureHttpClient
-	return
+	return httpClient
 }
 
 func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Response) error) {
@@ -111,12 +111,18 @@ func (c *HTTPClient) checkStatus(req *RequestData, response *http.Response) (err
 			contentBytes, _ := ioutil.ReadAll(lr)
 			content := string(contentBytes)
 
-			err = InvalidStatusError{req.ExpectedStatus, response.StatusCode, response.Header, content}
-			return
+			err = InvalidStatusError{
+				Expected: req.ExpectedStatus,
+				Got:      response.StatusCode,
+				Headers:  response.Header,
+				Content:  content,
+			}
+
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
 func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response) (err error) {
@@ -127,23 +133,31 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 		defer response.Body.Close()
 
 		if buf, err = ioutil.ReadAll(response.Body); err != nil {
-			return
+			return err
 		}
 
 		err = json.Unmarshal(buf, req.RespValue)
 
-		return
+		if err != nil {
+			return err
+		}
+
+		return nil
 
 	case EncodingXML:
 		defer response.Body.Close()
 
 		if buf, err = ioutil.ReadAll(response.Body); err != nil {
-			return
+			return err
 		}
 
 		err = xml.Unmarshal(buf, req.RespValue)
 
-		return
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	switch req.RespValue.(type) {
@@ -151,13 +165,13 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 		defer response.Body.Close()
 
 		if buf, err = ioutil.ReadAll(response.Body); err != nil {
-			return
+			return err
 		}
 
 		respVal := req.RespValue.(*[]byte)
 		*respVal = buf
 
-		return
+		return nil
 	}
 
 	if req.RespConsume {
@@ -165,12 +179,12 @@ func (c *HTTPClient) unmarshalResponse(req *RequestData, response *http.Response
 		ioutil.ReadAll(response.Body)
 	}
 
-	return
+	return nil
 }
 
 func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 	if req.ReqReader != nil || req.ReqValue == nil {
-		return
+		return nil
 	}
 
 	if req.Headers == nil {
@@ -184,19 +198,19 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 		buf, err = json.Marshal(req.ReqValue)
 
 		if err != nil {
-			return
+			return err
 		}
 
 		req.ReqReader = bytes.NewReader(buf)
 		req.Headers.Set("Content-Type", "application/json")
 
-		return
+		return nil
 
 	case EncodingXML:
 		buf, err = xml.Marshal(req.ReqValue)
 
 		if err != nil {
-			return
+			return err
 		}
 
 		buf = append(XmlHeaderBytes, buf...)
@@ -204,12 +218,10 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 		req.ReqReader = bytes.NewReader(buf)
 		req.Headers.Set("Content-Type", "application/xml")
 
-		return
+		return nil
 	}
 
-	err = fmt.Errorf("HTTPClient: invalid ReqEncoding: %s", req.ReqEncoding)
-
-	return
+	return fmt.Errorf("HTTPClient: invalid ReqEncoding: %s", req.ReqEncoding)
 }
 
 func (c *HTTPClient) runPostHook(req *http.Request, response *http.Response) (err error) {
@@ -219,20 +231,20 @@ func (c *HTTPClient) runPostHook(req *http.Request, response *http.Response) (er
 		err = hook(req, response)
 	}
 
-	return
+	return err
 }
 
 func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err error) {
 	err = c.marshalRequest(req)
 
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	r, err := http.NewRequest(req.Method, req.FullURL, req.ReqReader)
 
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if req.FullURL == "" {
@@ -273,21 +285,21 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	if err != nil {
-		return
+		return response, err
 	}
 
 	if err = c.runPostHook(r, response); err != nil {
-		return
+		return response, err
 	}
 
 	if err = c.checkStatus(req, response); err != nil {
 		defer response.Body.Close()
-		return
+		return response, err
 	}
 
 	if err = c.unmarshalResponse(req, response); err != nil {
-		return
+		return response, err
 	}
 
-	return
+	return response, nil
 }
