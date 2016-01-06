@@ -27,4 +27,12 @@ func IsInvalidStatusError(err error) (invalidStatusError *InvalidStatusError, ok
 	}
 }
 
+func IsInvalidStatusCode(err error, statusCode int) bool {
+	if ise, ok := IsInvalidStatusError(err); ok {
+		return ise.Got == statusCode
+	} else {
+		return false
+	}
+}
+
 var RateLimitTimeoutError = errors.New("HTTPClient rate limit timeout")

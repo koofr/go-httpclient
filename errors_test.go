@@ -38,4 +38,19 @@ var _ = Describe("InvalidStatusError", func() {
 			Expect(ok).To(BeTrue())
 		})
 	})
+
+	Describe("IsInvalidStatusCode", func() {
+		It("should check if status code matches", func() {
+			err := InvalidStatusError{
+				Expected: []int{200},
+				Got:      409,
+				Headers:  make(http.Header),
+				Content:  "Error",
+			}
+
+			var _ error = err
+
+			Expect(IsInvalidStatusCode(err, 409)).To(BeTrue())
+		})
+	})
 })
