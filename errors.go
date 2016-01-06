@@ -17,4 +17,14 @@ func (e InvalidStatusError) Error() string {
 	return fmt.Sprintf("Invalid response status! Got %d, expected %d; headers: %s, content: %s", e.Got, e.Expected, e.Headers, e.Content)
 }
 
+func IsInvalidStatusError(err error) (invalidStatusError *InvalidStatusError, ok bool) {
+	if ise, ok := err.(InvalidStatusError); ok {
+		return &ise, true
+	} else if ise, ok := err.(*InvalidStatusError); ok {
+		return ise, true
+	} else {
+		return nil, false
+	}
+}
+
 var RateLimitTimeoutError = errors.New("HTTPClient rate limit timeout")
