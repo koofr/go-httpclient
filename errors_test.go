@@ -1,6 +1,7 @@
 package httpclient_test
 
 import (
+	"fmt"
 	. "github.com/koofr/go-httpclient"
 	"net/http"
 
@@ -51,6 +52,10 @@ var _ = Describe("InvalidStatusError", func() {
 			var _ error = err
 
 			Expect(IsInvalidStatusCode(err, 409)).To(BeTrue())
+		})
+
+		It("should return false if error is not valid", func() {
+			Expect(IsInvalidStatusCode(fmt.Errorf("error"), 409)).To(BeFalse())
 		})
 	})
 })
