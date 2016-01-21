@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -219,6 +220,16 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 		req.Headers.Set("Content-Type", "application/xml")
 
 		return nil
+
+	case EncodingForm:
+		if data, ok := req.ReqValue.(url.Values); ok {
+			req.ReqReader = strings.NewReader(data.Encode())
+			req.Headers.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			return nil
+		} else {
+			return fmt.Errorf("HTTPClient: invalid ReqValue type %T", req.ReqValue)
+		}
 	}
 
 	return fmt.Errorf("HTTPClient: invalid ReqEncoding: %s", req.ReqEncoding)

@@ -11,6 +11,7 @@ type Encoding string
 const (
 	EncodingJSON = "JSON"
 	EncodingXML  = "XML"
+	EncodingForm = "Form"
 )
 
 type RequestData struct {

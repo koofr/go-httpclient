@@ -423,6 +423,43 @@ var _ = Describe("HTTPClient", func() {
 			Expect(err.Error()).To(Equal("xml: unsupported type: complex128"))
 		})
 
+		It("should set urlencoded request body with EncodingForm", func() {
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				body, _ := ioutil.ReadAll(r.Body)
+				Expect(body).To(Equal([]byte(`key=value`)))
+				Expect(r.Header.Get("content-type")).To(Equal("application/x-www-form-urlencoded"))
+				fmt.Fprintln(w, "ok")
+			}
+
+			data := make(url.Values)
+			data.Set("key", "value")
+
+			_, err := client.Request(&RequestData{
+				Method:      "POST",
+				Path:        "/",
+				ReqEncoding: EncodingForm,
+				ReqValue:    data,
+			})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should not set urlencoded request body with EncodingForm and invalid data", func() {
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintln(w, "ok")
+			}
+
+			data := "data"
+
+			_, err := client.Request(&RequestData{
+				Method:      "POST",
+				Path:        "/",
+				ReqEncoding: EncodingForm,
+				ReqValue:    data,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("HTTPClient: invalid ReqValue type string"))
+		})
+
 		It("should not set request body with invalid ReqEncoding", func() {
 			handler = func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "ok")
