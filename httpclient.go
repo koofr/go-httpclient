@@ -39,6 +39,8 @@ func Insecure() (httpClient *HTTPClient) {
 	return httpClient
 }
 
+var DefaultClient = New()
+
 func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Response) error) {
 	c.PostHooks[onStatus] = hook
 }
