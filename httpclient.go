@@ -8,7 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -298,6 +300,13 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 		}
 	}
 
+	isTraceEnabled := os.Getenv("HTTPCLIENT_TRACE") != ""
+
+	if isTraceEnabled {
+		requestBytes, _ := httputil.DumpRequestOut(r, true)
+		fmt.Println(string(requestBytes))
+	}
+
 	if req.IgnoreRedirects {
 		transport := c.Client.Transport
 
@@ -308,6 +317,11 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 		response, err = transport.RoundTrip(r)
 	} else {
 		response, err = c.Client.Do(r)
+	}
+
+	if isTraceEnabled {
+		responseBytes, _ := httputil.DumpResponse(response, true)
+		fmt.Println(string(responseBytes))
 	}
 
 	if err != nil {
