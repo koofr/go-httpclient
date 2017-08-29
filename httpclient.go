@@ -206,6 +206,9 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 
 		req.ReqReader = bytes.NewReader(buf)
 		req.Headers.Set("Content-Type", "application/json")
+		req.Headers.Set("Content-Length", fmt.Sprintf("%d", len(buf)))
+
+		req.ReqContentLength = int64(len(buf))
 
 		return nil
 
@@ -220,13 +223,21 @@ func (c *HTTPClient) marshalRequest(req *RequestData) (err error) {
 
 		req.ReqReader = bytes.NewReader(buf)
 		req.Headers.Set("Content-Type", "application/xml")
+		req.Headers.Set("Content-Length", fmt.Sprintf("%d", len(buf)))
+
+		req.ReqContentLength = int64(len(buf))
 
 		return nil
 
 	case EncodingForm:
 		if data, ok := req.ReqValue.(url.Values); ok {
-			req.ReqReader = strings.NewReader(data.Encode())
+			formStr := data.Encode()
+			req.ReqReader = strings.NewReader(formStr)
 			req.Headers.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			req.Headers.Set("Content-Length", fmt.Sprintf("%d", len(formStr)))
+
+			req.ReqContentLength = int64(len(formStr))
 
 			return nil
 		} else {
@@ -259,6 +270,8 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	if err != nil {
 		return nil, err
 	}
+
+	r.ContentLength = req.ReqContentLength
 
 	if req.FullURL == "" {
 		r.URL = c.buildURL(req)

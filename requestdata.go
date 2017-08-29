@@ -15,19 +15,20 @@ const (
 )
 
 type RequestData struct {
-	Method          string
-	Path            string
-	Params          url.Values
-	FullURL         string // client.BaseURL + Path or FullURL
-	Headers         http.Header
-	ReqReader       io.Reader
-	ReqEncoding     Encoding
-	ReqValue        interface{}
-	ExpectedStatus  []int
-	IgnoreRedirects bool
-	RespEncoding    Encoding
-	RespValue       interface{}
-	RespConsume     bool
+	Method           string
+	Path             string
+	Params           url.Values
+	FullURL          string // client.BaseURL + Path or FullURL
+	Headers          http.Header
+	ReqReader        io.Reader
+	ReqEncoding      Encoding
+	ReqValue         interface{}
+	ReqContentLength int64
+	ExpectedStatus   []int
+	IgnoreRedirects  bool
+	RespEncoding     Encoding
+	RespValue        interface{}
+	RespConsume      bool
 }
 
 func (r *RequestData) CanCopy() bool {
