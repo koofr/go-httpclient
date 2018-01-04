@@ -61,7 +61,13 @@ func (c *HTTPClient) SetRateLimit(limit int, timeout time.Duration) {
 func (c *HTTPClient) buildURL(req *RequestData) *url.URL {
 	bu := c.BaseURL
 
-	opaque := EscapePath(bu.Path + req.Path)
+	rpath := req.Path
+
+	if strings.HasSuffix(bu.Path, "/") && strings.HasPrefix(rpath, "/") {
+		rpath = rpath[1:]
+	}
+
+	opaque := EscapePath(bu.Path + rpath)
 
 	u := &url.URL{
 		Scheme: bu.Scheme,
