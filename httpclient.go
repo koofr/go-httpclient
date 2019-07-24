@@ -17,11 +17,15 @@ import (
 
 var XmlHeaderBytes []byte = []byte(xml.Header)
 
+type ErrorHandlerFunc func(*http.Response, error) error
+type PostHookFunc func(*http.Request, *http.Response) error
+
 type HTTPClient struct {
 	BaseURL          *url.URL
 	Headers          http.Header
 	Client           *http.Client
-	PostHooks        map[int]func(*http.Request, *http.Response) error
+	PostHooks        map[int]PostHookFunc
+	errorHandler     ErrorHandlerFunc
 	rateLimited      bool
 	rateLimitChan    chan struct{}
 	rateLimitTimeout time.Duration
@@ -31,7 +35,7 @@ func New() (httpClient *HTTPClient) {
 	return &HTTPClient{
 		Client:    HttpClient,
 		Headers:   make(http.Header),
-		PostHooks: make(map[int]func(*http.Request, *http.Response) error),
+		PostHooks: make(map[int]PostHookFunc),
 	}
 }
 
@@ -43,8 +47,12 @@ func Insecure() (httpClient *HTTPClient) {
 
 var DefaultClient = New()
 
-func (c *HTTPClient) SetPostHook(onStatus int, hook func(*http.Request, *http.Response) error) {
+func (c *HTTPClient) SetPostHook(onStatus int, hook PostHookFunc) {
 	c.PostHooks[onStatus] = hook
+}
+
+func (c *HTTPClient) SetErrorHandler(handler ErrorHandlerFunc) {
+	c.errorHandler = handler
 }
 
 func (c *HTTPClient) SetRateLimit(limit int, timeout time.Duration) {
@@ -331,6 +339,9 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 	}
 
 	if err != nil {
+		if c.errorHandler != nil {
+			err = c.errorHandler(response, err)
+		}
 		return response, err
 	}
 
