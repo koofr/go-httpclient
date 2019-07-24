@@ -17,7 +17,7 @@ import (
 
 var XmlHeaderBytes []byte = []byte(xml.Header)
 
-type ErrorHandlerFunc func(*http.Response, error)
+type ErrorHandlerFunc func(*http.Response, error) error
 type PostHookFunc func(*http.Request, *http.Response) error
 
 type HTTPClient struct {
@@ -340,7 +340,7 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 
 	if err != nil {
 		if c.errorHandler != nil {
-			c.errorHandler(response, err)
+			err = c.errorHandler(response, err)
 		}
 		return response, err
 	}
