@@ -161,6 +161,29 @@ var _ = Describe("HTTPClient", func() {
 		})
 	})
 
+	Describe("SetErrorHandler", func() {
+		It("should set the error handler", func() {
+			ts.Close()
+
+			errorHandled := false
+
+			client.SetErrorHandler(func(res *http.Response, err error) error {
+				Expect(res).To(BeNil())
+				Expect(err).To(HaveOccurred())
+				errorHandled = true
+				return err
+			})
+
+			_, err := client.Request(&RequestData{
+				Method: "GET",
+				Path:   "/",
+			})
+			Expect(err).To(HaveOccurred())
+
+			Expect(errorHandled).To(BeTrue())
+		})
+	})
+
 	Describe("SetRateLimit", func() {
 		It("should rate limit requests without timeout", func() {
 			responseLock := &sync.RWMutex{}
