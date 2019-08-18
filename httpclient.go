@@ -287,6 +287,10 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 		return nil, err
 	}
 
+	if req.Context != nil {
+		r = r.WithContext(req.Context)
+	}
+
 	r.ContentLength = req.ReqContentLength
 
 	if req.FullURL == "" {
@@ -333,16 +337,25 @@ func (c *HTTPClient) Request(req *RequestData) (response *http.Response, err err
 		response, err = c.Client.Do(r)
 	}
 
-	if isTraceEnabled {
-		responseBytes, _ := httputil.DumpResponse(response, true)
-		fmt.Println(string(responseBytes))
-	}
-
 	if err != nil {
+		if req.Context != nil {
+			// If we got an error, and the context has been canceled,
+			// the context's error is probably more useful.
+			select {
+			case <-req.Context.Done():
+				err = req.Context.Err()
+			default:
+			}
+		}
 		if c.errorHandler != nil {
 			err = c.errorHandler(response, err)
 		}
-		return response, err
+		return nil, err
+	}
+
+	if isTraceEnabled {
+		responseBytes, _ := httputil.DumpResponse(response, true)
+		fmt.Println(string(responseBytes))
 	}
 
 	if err = c.runPostHook(r, response); err != nil {

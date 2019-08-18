@@ -2,10 +2,8 @@ package httpclient_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	. "github.com/koofr/go-httpclient"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,6 +13,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	. "github.com/koofr/go-httpclient"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 type ExampleStruct struct {
@@ -125,6 +127,26 @@ var _ = Describe("HTTPClient", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res.StatusCode).To(Equal(200))
+		})
+	})
+
+	Describe("Request", func() {
+		It("should pass the context", func() {
+			requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				defer GinkgoRecover()
+				requestCtxCancel()
+				Eventually(r.Context().Err).Should(HaveOccurred())
+			}
+
+			_, err := client.Request(&RequestData{
+				Context: requestCtx,
+				Method:  "GET",
+				Path:    "/",
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("context canceled"))
 		})
 	})
 
