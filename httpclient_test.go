@@ -56,6 +56,7 @@ var _ = Describe("HTTPClient", func() {
 		u, _ := url.Parse(ts.URL)
 
 		client = New()
+		client.Client = ts.Client()
 		client.BaseURL = u
 	})
 
@@ -78,6 +79,7 @@ var _ = Describe("HTTPClient", func() {
 			ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "ok")
 			}))
+			client.Client = ts.Client()
 
 			u, _ := url.Parse(ts.URL)
 			client = New()
@@ -106,7 +108,7 @@ var _ = Describe("HTTPClient", func() {
 				FullURL: "://???",
 			})
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal(`parse ://???: missing protocol scheme`))
+			Expect(err.Error()).To(ContainSubstring(`missing protocol scheme`))
 		})
 	})
 
@@ -116,6 +118,7 @@ var _ = Describe("HTTPClient", func() {
 			ts = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, "ok")
 			}))
+			client.Client = ts.Client()
 
 			u, _ := url.Parse(ts.URL)
 			client = Insecure()
@@ -881,6 +884,7 @@ var _ = Describe("HTTPClient", func() {
 				defer func() {
 					waitCh <- true
 				}()
+				defer GinkgoRecover()
 				reader, err := r.MultipartReader()
 				Expect(err).NotTo(HaveOccurred())
 				p, err := reader.NextPart()
@@ -905,7 +909,7 @@ var _ = Describe("HTTPClient", func() {
 
 			_, err = client.Request(req)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("Post http:/: broken body"))
+			Expect(err.Error()).To(ContainSubstring("broken body"))
 
 			<-waitCh
 		})
