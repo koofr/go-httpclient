@@ -14,9 +14,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	. "github.com/koofr/go-httpclient"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	. "github.com/koofr/go-httpclient"
 )
 
 type ExampleStruct struct {
@@ -554,6 +555,30 @@ var _ = Describe("HTTPClient", func() {
 			})
 			Expect(err).To(HaveOccurred())
 			Expect(err).To(Equal(InvalidStatusError{
+				Expected: []int{201},
+				Got:      400,
+				Headers:  res.Header,
+				Content:  "fail\n",
+			}))
+			Expect(strings.HasPrefix(err.Error(), "Invalid response status! Got 400, expected [201]; headers: ")).To(BeTrue())
+			Expect(strings.HasSuffix(err.Error(), ", content: fail\n")).To(BeTrue())
+		})
+
+		It("should return error for wrong response status (error pointer)", func() {
+			client.UseInvalidStatusErrorPtr()
+
+			handler = func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(400)
+				fmt.Fprintln(w, "fail")
+			}
+
+			res, err := client.Request(&RequestData{
+				Method:         "GET",
+				Path:           "/",
+				ExpectedStatus: []int{201},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(&InvalidStatusError{
 				Expected: []int{201},
 				Got:      400,
 				Headers:  res.Header,

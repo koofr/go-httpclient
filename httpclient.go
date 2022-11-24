@@ -21,14 +21,15 @@ type ErrorHandlerFunc func(*http.Response, error) error
 type PostHookFunc func(*http.Request, *http.Response) error
 
 type HTTPClient struct {
-	BaseURL          *url.URL
-	Headers          http.Header
-	Client           *http.Client
-	PostHooks        map[int]PostHookFunc
-	errorHandler     ErrorHandlerFunc
-	rateLimited      bool
-	rateLimitChan    chan struct{}
-	rateLimitTimeout time.Duration
+	BaseURL                  *url.URL
+	Headers                  http.Header
+	Client                   *http.Client
+	PostHooks                map[int]PostHookFunc
+	errorHandler             ErrorHandlerFunc
+	rateLimited              bool
+	rateLimitChan            chan struct{}
+	rateLimitTimeout         time.Duration
+	useInvalidStatusErrorPtr bool
 }
 
 func New() (httpClient *HTTPClient) {
@@ -64,6 +65,10 @@ func (c *HTTPClient) SetRateLimit(limit int, timeout time.Duration) {
 	}
 
 	c.rateLimitTimeout = timeout
+}
+
+func (c *HTTPClient) UseInvalidStatusErrorPtr() {
+	c.useInvalidStatusErrorPtr = true
 }
 
 func (c *HTTPClient) buildURL(req *RequestData) *url.URL {
@@ -130,14 +135,18 @@ func (c *HTTPClient) checkStatus(req *RequestData, response *http.Response) (err
 			contentBytes, _ := ioutil.ReadAll(lr)
 			content := string(contentBytes)
 
-			err = InvalidStatusError{
+			invalidStatusError := InvalidStatusError{
 				Expected: req.ExpectedStatus,
 				Got:      response.StatusCode,
 				Headers:  response.Header,
 				Content:  content,
 			}
 
-			return err
+			if c.useInvalidStatusErrorPtr {
+				return &invalidStatusError
+			} else {
+				return invalidStatusError
+			}
 		}
 	}
 
