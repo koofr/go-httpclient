@@ -2,10 +2,11 @@ package httpclient_test
 
 import (
 	"fmt"
-	. "github.com/koofr/go-httpclient"
 	"net/http"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/koofr/go-httpclient"
+
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

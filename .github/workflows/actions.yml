@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.18", "1.19", "1.20"] 
+        go-version: [1.21.x, 1.22.x]
     steps:
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v24
       with:
         go-version: ${{ matrix.go-version }}
       id: go
